@@ -1,12 +1,12 @@
 //+------------------------------------------------------------------+
 //|                                                 OverlayChart.mq5 |
-//|                               Copyright 2014-2022, EarnForex.com |
+//|                                    Copyright 2023, EarnForex.com |
 //|                                        https://www.earnforex.com |
 //|               Converted from MT4 version by http://www.irxfx.com |
 //+------------------------------------------------------------------+
-#property copyright "Copyright 2014-2022, EarnForex.com"
+#property copyright "Copyright 2023, EarnForex.com"
 #property link      "https://www.earnforex.com/forum/threads/overlay-chart.8939/"
-#property version   "1.03"
+#property version   "1.04"
 
 #property description "Adds overlay chart of another symbol (subsymbol) to the current one."
 #property description "If subsymbol chart has more bars, it will skip them."
@@ -31,6 +31,8 @@ input bool Mirroring = false;
 input ENUM_DRAW_TYPE DrawType = DRAW_COLOR_BARS;
 input color GridColor = clrWhite;
 input enum_screen_side ScaleSide = Left; // Subsymbol Y-scale side of screen
+input bool GridEnabled = true;
+input string ObjectPrefix = "OC_"; // ObjectPrefix: modify using more than one on the same chart.
 
 // Indicator buffers:
 double O[];
@@ -45,7 +47,6 @@ double SubHigh[];
 double SubLow[];
 double SubClose[];
 datetime SubTime[];
-string Prefix = "OverlayChart"; // Indicator prefix.
 int Grid = 10; // Grid lines.
 int SnapPips = 10;  // Snap pips for grid lines.
 double prev_SubRangeCenter = 0;
@@ -81,9 +82,9 @@ int OnInit()
 
     PlotIndexSetDouble(0, PLOT_EMPTY_VALUE, 0);
     PlotIndexSetInteger(0, PLOT_DRAW_TYPE, DrawType);
-    
+
     Comment(SubSymbol + " Overlay");
-    
+
     EventSetTimer(1);
 
     return INIT_SUCCEEDED;
@@ -91,8 +92,9 @@ int OnInit()
 
 void OnDeinit(const int reason)
 {
-    ObjectsDeleteAll(0, Prefix);
+    ObjectsDeleteAll(0, ObjectPrefix);
     Comment("");
+    ChartRedraw();
 }
 
 int OnCalculate(const int rates_total,
@@ -266,14 +268,14 @@ int Recalc(int rates_total, const datetime& Time[], const double& Open[], const 
     }
 
     // Don't redraw grid if nothing changed.
-    if ((prev_SubRangeCenter != _SubRangeCenter) || (prev_GridPips != _GridPips))
+    if ((GridEnabled) && ((prev_SubRangeCenter != _SubRangeCenter) || (prev_GridPips != _GridPips)))
     {
         for (_i = 1; _i <= Grid; _i ++)
         {
             _GridPrice = MathRound(_SubRangeCenter / (_SubPoint * SnapPips)) * (_SubPoint * SnapPips);
             _GridPrice = ((_GridPrice + _GridPips / 2) + _GridPips * (Grid / 2 - 1)) - (_GridPips * (_i - 1));
 
-            string grid_string = Prefix + "Grid" + IntegerToString(_i);
+            string grid_string = ObjectPrefix + "Grid" + IntegerToString(_i);
             if (ObjectFind(0, grid_string) < 0)
             {
                 ObjectCreate(0, grid_string, OBJ_TREND, 0, 0, 0);
@@ -288,7 +290,7 @@ int Recalc(int rates_total, const datetime& Time[], const double& Open[], const 
             ObjectSetInteger(0, grid_string, OBJPROP_TIME, 1, Time[_LastBar]);
             ObjectSetDouble(0, grid_string, OBJPROP_PRICE, 1, _CurRangeCenter + (_GridPrice - _SubRangeCenter) * _PipsRatio);
 
-            grid_string = Prefix + "Price" + IntegerToString(_i);
+            grid_string = ObjectPrefix + "Price" + IntegerToString(_i);
             if (ObjectFind(0, grid_string) < 0)
             {
                 ObjectCreate(0, grid_string, OBJ_TEXT, 0, 0, 0);
@@ -314,7 +316,7 @@ int Recalc(int rates_total, const datetime& Time[], const double& Open[], const 
         }
     }
 
-    string skipped_label = Prefix + "Skipped";
+    string skipped_label = ObjectPrefix + "Skipped";
     if (skipped)
     {
         if (ObjectFind(0, skipped_label) < 0)
@@ -332,7 +334,7 @@ int Recalc(int rates_total, const datetime& Time[], const double& Open[], const 
         ObjectDelete(0, skipped_label);
     }
 
-    string not_enough_label = Prefix + "NotEnough";
+    string not_enough_label = ObjectPrefix + "NotEnough";
     if (not_enough)
     {
         if (ObjectFind(0, not_enough_label) < 0)
